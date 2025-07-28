@@ -66,7 +66,7 @@ resource "kubernetes_service" "sonarqube_lb" {
     }
     type = "LoadBalancer"
     port {
-      port        = 9000
+      port        = 9001
       target_port = 9000
     }
   }
