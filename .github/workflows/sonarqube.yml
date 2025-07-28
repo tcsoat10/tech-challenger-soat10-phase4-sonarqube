@@ -1,39 +1,61 @@
-name: SonarQube Scan
+name: Tech Challenger CI/CD
 
 on:
   push:
-    paths:
-      - 'payment-microservice/**'
-      - 'auth-microservice/**'
-      - 'stock-microservice/**'
-      - 'order-microservice/**'
+    branches: [ main ]
   pull_request:
-    paths:
-      - 'payment-microservice/**'
-      - 'auth-microservice/**'
-      - 'stock-microservice/**'
-      - 'order-microservice/**'
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  REGION_DEFAULT: "us-east-1"
+  AWS_ECR_REGISTRY: "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com"
+  PROJECT_NAME: "soattc-sonarqube"
 
 jobs:
-  sonarqube:
+  build:
+    name: Build and Cache Dependencies
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [payment-microservice, auth-microservice, stock-microservice, order-microservice]
-    defaults:
-      run:
-        working-directory: ${{ matrix.service }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+  deploy_infra:
+    name: Deploy Infra
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          java-version: '17'
-          distribution: 'temurin'
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v2
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.REGION_DEFAULT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          projectBaseDir: ${{ matrix.service }}
-        env:
-          SONAR_TOKEN: ${{ secrets[format('SONAR_TOKEN_{0}', matrix.service)] }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: ./terraform/infra
+        run: terraform init
+
+      - name: Select production workspace
+        if: github.ref == 'refs/heads/main'
+        working-directory: ./terraform/infra
+        run: terraform workspace new prod || terraform workspace select prod
+      
+      - name: Terraform Plan
+        working-directory: ./terraform/infra
+        run: terraform plan
+
+      - name: Terraform Apply
+        working-directory: ./terraform/infra
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve
