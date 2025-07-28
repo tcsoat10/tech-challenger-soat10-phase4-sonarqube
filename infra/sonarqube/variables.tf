@@ -1,21 +1,27 @@
-variable "kubeconfig_path" {
-  description = "Caminho para o kubeconfig do EKS"
-  type        = string
+variable "aws_region" {
+  default = "us-east-1"
 }
 
-variable "sonarqube_url" {
-  description = "URL do SonarQube"
-  type        = string
+variable "cluster_name" {
+  default = "soat10tc-cluster-eks"
 }
 
-variable "sonarqube_token" {
-  description = "Token de admin do SonarQube"
-  type        = string
-  sensitive   = true
+variable "vpc_cidr_block" {
+  default = ["172.31.0.0/16"]
 }
 
-variable "sonarqube_admin_password" {
-  description = "Senha do usuário admin do SonarQube"
-  type        = string
-  sensitive   = true
+variable "accessConfig" {
+  default = "API_AND_CONFIG_MAP"
+}
+
+variable "node_name" {
+  default = "my-nodes-group"
+}
+
+variable "policy_arn" {
+  default = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+}
+
+variable "instance_type" {
+  default = "t3.small"
 }

@@ -1,54 +1,70 @@
-variable "sonarqube_admin_password" {
-  description = "Senha do usuário admin do SonarQube"
-  type        = string
-  sensitive   = true
+provider "aws" {
+  region = var.aws_region
 }
+
 terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = ">= 2.0.0"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = ">= 2.0.0"
-    }
-    sonarqube = {
-      source  = "rubenespadas/sonarqube"
-      version = ">= 0.8.0"
-    }
+  backend "s3" {
+    bucket = "soattc-sonarqube"
+    key    = "sonarqube/terraform.tfstate"
+    region = "us-east-1" # ajuste para sua região
   }
 }
 
 provider "kubernetes" {
-  # Configure para apontar para o cluster EKS existente
-  config_path = var.kubeconfig_path
+  host                   = data.terraform_remote_state.aws.outputs.eks_cluster_endpoint
+  cluster_ca_certificate = base64decode(data.terraform_remote_state.aws.outputs.eks_cluster_ca)
+  token                  = data.aws_eks_cluster_auth.cluster.token
 }
 
-provider "helm" {
-  kubernetes {
-    config_path = var.kubeconfig_path
+data "aws_eks_cluster_auth" "cluster" {
+  name = var.cluster_name
+}
+
+resource "kubernetes_deployment" "sonarqube" {
+  metadata {
+    name      = "sonarqube"
+    namespace = "default"
+    labels = {
+      app = "sonarqube"
+    }
+  }
+  spec {
+    replicas = 1
+    selector {
+      match_labels = {
+        app = "sonarqube"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app = "sonarqube"
+        }
+      }
+      spec {
+        container {
+          name  = "sonarqube"
+          image = "086134737169.dkr.ecr.us-east-1.amazonaws.com/sonarqube:latest"
+        }
+      }
+    }
   }
 }
 
-provider "sonarqube" {
-  url   = var.sonarqube_url
-  token = var.sonarqube_token
-  # A senha do admin é usada apenas na configuração do Helm
-}
-
-variable "kubeconfig_path" {
-  description = "Caminho para o kubeconfig do EKS"
-  type        = string
-}
-
-variable "sonarqube_url" {
-  description = "URL do SonarQube"
-  type        = string
-}
-
-variable "sonarqube_token" {
-  description = "Token de admin do SonarQube"
-  type        = string
-  sensitive   = true
+resource "kubernetes_service" "sonarqube_lb" {
+  depends_on = [kubernetes_deployment.sonarqube]
+  metadata {
+    name      = "sonarqube-lb"
+    namespace = "default"
+  }
+  spec {
+    selector = {
+      app = "sonarqube"
+    }
+    type = "LoadBalancer"
+    port {
+      port        = 80
+      target_port = 8000
+    }
+  }
 }
