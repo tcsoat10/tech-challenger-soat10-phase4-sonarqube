@@ -22,7 +22,6 @@ jobs:
         
   deploy_infra:
     name: Deploy Infra
-    needs: test
     runs-on: ubuntu-latest
     environment: production
     steps:
