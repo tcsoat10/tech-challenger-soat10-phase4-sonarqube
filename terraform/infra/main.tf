@@ -45,9 +45,8 @@ resource "kubernetes_deployment" "sonarqube" {
         container {
           name  = "sonarqube"
           image = "086134737169.dkr.ecr.us-east-1.amazonaws.com/sonarqube:latest"
-          ports {
-            internal = 9000
-            external = 9000
+          port {
+            container_port = 9000
           }
         }
       }
@@ -67,7 +66,7 @@ resource "kubernetes_service" "sonarqube_lb" {
     }
     type = "LoadBalancer"
     port {
-      port        = 9000
+      port        = 9001
       target_port = 9000
     }
   }
