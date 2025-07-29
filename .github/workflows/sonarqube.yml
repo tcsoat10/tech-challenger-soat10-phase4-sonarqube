@@ -101,7 +101,7 @@ jobs:
         run: terraform workspace new prod || terraform workspace select prod
       
       - name: Create tfvars file
-        working-directory: ./terraform/app
+        working-directory: ./terraform/projects
         run: |
           cat <<EOF > secrets.auto.tfvars
           sonar_token = "${{ secrets.SONAR_TOKEN }}"
