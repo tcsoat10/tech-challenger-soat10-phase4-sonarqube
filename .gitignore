@@ -1,7 +1,5 @@
 # Ignore Terraform files
 .terraform/
-*.tfstate
-*.tfstate.*
 crash.log
 *.tfvars
 .terraform.lock.hcl
@@ -12,7 +10,6 @@ secrets.auto.tfvars
 
 # Ignore Terraform state and variable files
 *.tfvars
-*.tfstate
 *.tfstate.backup
 .terraform/
 .terraform.lock.hcl
