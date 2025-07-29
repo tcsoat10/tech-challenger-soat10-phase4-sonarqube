@@ -107,9 +107,17 @@ jobs:
           sonar_token = "${{ secrets.SONAR_TOKEN }}"
           EOF
       
+      # Terraform Plan (PR)
+      - name: Terraform Plan
+        working-directory: ./terraform/projects
+        run: terraform plan || true
+        if: github.ref != 'refs/heads/main'
+
+      # Terraform Plan (Main)
       - name: Terraform Plan
         working-directory: ./terraform/projects
         run: terraform plan
+        if: github.ref == 'refs/heads/main'
 
       - name: Terraform Apply
         working-directory: ./terraform/projects
