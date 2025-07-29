@@ -44,6 +44,11 @@ jobs:
       - name: Terraform Init
         working-directory: ./terraform/infra
         run: terraform init
+      
+      - name: Copy mocks if not in main branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          cp terraform/mock/mock_rds_outputs.tfstate terraform/infra/          
 
       - name: Select production workspace
         if: github.ref == 'refs/heads/main'
@@ -56,5 +61,57 @@ jobs:
 
       - name: Terraform Apply
         working-directory: ./terraform/infra
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve
+  
+  deploy_projects:
+    name: Deploy Projects
+    needs: deploy_infra
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.REGION_DEFAULT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: ./terraform/projects
+        run: terraform init
+      
+      - name: Copy mocks if not in main branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          cp terraform/mock/mock_sonarqube_outputs.tfstate terraform/projects/          
+
+      - name: Select production workspace
+        if: github.ref == 'refs/heads/main'
+        working-directory: ./terraform/projects
+        run: terraform workspace new prod || terraform workspace select prod
+      
+      - name: Create tfvars file
+        working-directory: ./terraform/app
+        run: |
+          cat <<EOF > secrets.auto.tfvars
+          sonar_token = "${{ secrets.SONAR_TOKEN }}"
+          EOF
+      
+      - name: Terraform Plan
+        working-directory: ./terraform/projects
+        run: terraform plan
+
+      - name: Terraform Apply
+        working-directory: ./terraform/projects
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve
