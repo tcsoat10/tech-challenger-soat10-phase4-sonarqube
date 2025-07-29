@@ -1,0 +1,1 @@
+variable "sonar_token" {}
