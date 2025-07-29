@@ -48,7 +48,7 @@ jobs:
       - name: Copy mocks if not in main branch
         if: github.ref != 'refs/heads/main'
         run: |
-          cp terraform/mock/mock_rds_outputs.tfstate terraform/infra/          
+          cp terraform/mock/mock_eks_outputs.tfstate terraform/infra/          
 
       - name: Select production workspace
         if: github.ref == 'refs/heads/main'
